@@ -1,2 +1,4 @@
 # jupyter notebook
 .ipynb_checkpoints/
+# do not include raw data
+data/
