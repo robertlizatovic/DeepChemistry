@@ -2,3 +2,5 @@
 .ipynb_checkpoints/
 # do not include raw data
 data/
+# cache
+__pycache__/
