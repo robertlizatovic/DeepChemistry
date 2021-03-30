@@ -75,12 +75,12 @@ class MolecularVAE(nn.Module):
         return mean, logv, stdev
         
     def decode(self, z:torch.Tensor, input_embeddings:torch.Tensor) -> torch.Tensor:
-        """Decodes z as a distribution over the vocabulary for each position in the sequence"""
+        """Decodes z as a log-likelihood over the vocabulary for each position in the sequence"""
         batch_sz = z.size(0)
         hidden = self.latent2hidden(z)
         hidden = hidden.view(self.hidden_factor, batch_sz, self.hidden_dim)
         output, _ = self.decoder_rnn(input_embeddings, hidden)
-        return F.softmax(self.outputs2vocab(output), dim=-1)
+        return F.log_softmax(self.outputs2vocab(output), dim=-1)
         
     def samplePrior(self, batch_sz:int) -> torch.Tensor:
         """Samples z from a unit multivariate Gaussian"""
