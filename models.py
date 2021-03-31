@@ -60,8 +60,8 @@ class MolecularVAE(nn.Module):
         # sample z from the posterior distribution
         z = self.samplePosterior(mean, stdev)
         # run through the decoder
-        logits = self.decode(z, input_embeddings)
-        return logits, z, mean, logv
+        logp = self.decode(z, input_embeddings)
+        return logp, z, mean, logv
     
     def encode(self, input_embeddings:torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Encodes a sequence as parametrized posterior distribution over the latent space - z"""
@@ -98,7 +98,7 @@ class MolecularVAE(nn.Module):
     def generateSequences(self, n:int=16, z=None, max_len:int=150, greedy:bool=False) -> torch.Tensor:
         """Generates a batch of sequences from latent space encodings."""
         # if z is not given, sample from prior
-        if not z:
+        if z is None:
             z = self.samplePrior(n)
         batch_sz = z.size(0)
         sequences = torch.full([batch_sz, max_len], self.pad_idx, dtype=torch.long)
@@ -110,9 +110,9 @@ class MolecularVAE(nn.Module):
         running_mask = torch.ones(batch_sz).bool()
         for s in range(1, max_len):
             input_embeddings[running_mask, s-1, :] = self.embedding(sequences[running_mask, s-1])
-            logits = self.decode(z[running_mask, :], input_embeddings[running_mask, :s, :])
+            logp = self.decode(z[running_mask, :], input_embeddings[running_mask, :s, :])
             # sample from softmax at sequence position - s
-            next_idxs = self._sample(logits[: ,-1:, :], greedy=greedy).flatten()
+            next_idxs = self._sample(logp[: ,-1:, :], greedy=greedy).flatten()
             sequences[running_mask, s] = next_idxs
             # check for eos and pad signal and update running mask
             running_mask = (sequences[:, s] != self.eos_idx) & (sequences[:, s] != self.pad_idx) 
@@ -121,15 +121,15 @@ class MolecularVAE(nn.Module):
                 break
         return sequences
             
-    def _sample(self, logits:torch.Tensor, greedy:bool=False) -> torch.Tensor:
+    def _sample(self, logp:torch.Tensor, greedy:bool=False) -> torch.Tensor:
         """Samples idxs from a softmax distribution"""
         if greedy:
             # sample the most probable token at each sequence position
-            return logits.argmax(-1)
+            return logp.argmax(-1)
         else:
             # randomly sample from a softmax distribution at each sequence position
-            batch_sz, seq_len, vocab_sz = logits.size()
+            batch_sz, seq_len, vocab_sz = logp.size()
             rand = torch.rand(batch_sz, seq_len, 1).repeat(1, 1, vocab_sz)
-            cdf = logits.cumsum(-1)
+            cdf = logp.exp().cumsum(-1)
             return (rand > cdf).long().sum(-1)
 
