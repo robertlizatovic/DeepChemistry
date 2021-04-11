@@ -56,9 +56,9 @@ if __name__ == "__main__":
     val_ds = SMILESDataset(chembl["Smiles"][int(0.8 * NROWS):], vocabulary, tokenizer)
 
     # create model
-    vae = MolecularVAE(len(vocabulary), 32, 128, 128, vocabulary.getStartIdx(), vocabulary.getEndIdx(), vocabulary.getPadIdx(), use_unk_idx=True, enc_rnn_type="lstm", 
-        enc_rnn_layers=1, enc_bidirectional=True, enc_mid_layers=1, enc_mid_dim=128, enc_mid_dp=0.2, enc_mid_batchnorm=True, dec_mid_layers=1, dec_mid_dim=128, 
-        dec_mid_dp=0.2, dec_mid_batchnorm=True, dec_rnn_type="lstm", dec_rnn_layers=1, dec_token_dropout=1.0, dec_embedding_dp=0.0)
+    vae = MolecularVAE(len(vocabulary), 32, 256, 256, vocabulary.getStartIdx(), vocabulary.getEndIdx(), vocabulary.getPadIdx(), use_unk_idx=True, enc_rnn_type="gru", 
+        enc_rnn_layers=1, enc_bidirectional=True, enc_mid_layers=1, enc_mid_dim=256, enc_mid_dp=0.2, enc_mid_batchnorm=True, dec_mid_layers=1, dec_mid_dim=256, 
+        dec_mid_dp=0.2, dec_mid_batchnorm=True, dec_rnn_type="gru", dec_rnn_layers=1, dec_token_dropout=0.2, dec_embedding_dp=0.0)
     print(vae)
 
     # num. of trainable params in the model
@@ -70,16 +70,16 @@ if __name__ == "__main__":
     # train the model
     optimizer = torch.optim.Adam(vae.parameters(), lr=0.001)
     step = 0
-    for e in range(1, 3):
+    for e in range(1, 5):
         print("Epoch: %i" %e)
-        dl = tud.DataLoader(train_ds, batch_size=32, shuffle=False, collate_fn=val_ds.getCollateFn())
+        dl = tud.DataLoader(train_ds, batch_size=128, shuffle=False, collate_fn=val_ds.getCollateFn())
         # enable dropout
         vae.train()
         for b, batch in enumerate(dl):
             optimizer.zero_grad()
             # compute loss
             nll_loss, kl_loss = compute_loss(vae, batch)
-            kl_w = annealing_func(step, 100, 10)
+            kl_w = annealing_func(step, 250, 20)
             loss = nll_loss + kl_w * kl_loss
             # compute gradients
             loss.backward()
